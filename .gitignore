@@ -1,1 +1,11 @@
 /data/*.sqlite
+
+# Local OpenCode configuration and dependencies
+/.opencode/
+
+# Educational reference material kept outside the application
+/AGENTS.md
+/0613_DWES_programacio.pdf
+/reference/
+/REQUERIMENTS.md
+/TODO.md

@@ -1,133 +1,142 @@
 <?php
-
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/csrf.php';
-require_once __DIR__ . '/../includes/flash.php';
+declare(strict_types=1);
 
 session_start();
+require_once __DIR__ . '/../includes/data.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
 requireAuth();
+$data = loadData();
+$sprint = activeSprint($data['sprints'] ?? []);
+$errors = [];
+$selectedTeam = (int) ($_GET['team_id'] ?? 0);
 
-$db = getDB();
-
-$teamFilter = $_GET['team'] ?? '';
-
-$where = '';
-$params = [];
-if ($teamFilter !== '') {
-    $where = "WHERE t.team_id = ?";
-    $params[] = $teamFilter;
+if ($selectedTeam !== 0 && findRecord($data['teams'] ?? [], $selectedTeam) === null) {
+    $errors[] = 'L’equip seleccionat no existeix.';
+    $selectedTeam = 0;
 }
 
-$stmt = $db->prepare("
-    SELECT t.*, u.name as user_name, te.name as team_name
-    FROM tasks t
-    LEFT JOIN users u ON t.user_id = u.id
-    LEFT JOIN teams te ON t.team_id = te.id
-    $where
-    ORDER BY t.created_at DESC
-");
-$stmt->execute($params);
-$tasks = $stmt->fetchAll();
-
-$teams = $db->query("SELECT * FROM teams ORDER BY name")->fetchAll();
-
-$columns = ['todo' => 'To Do', 'in_progress' => 'In Progress', 'done' => 'Done'];
-$board = ['todo' => [], 'in_progress' => [], 'done' => []];
-foreach ($tasks as $task) {
-    $board[$task['status']][] = $task;
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'move_task') {
-    requireCsrfToken();
-    $taskId = $_POST['task_id'] ?? null;
-    $newStatus = $_POST['new_status'] ?? null;
-
-    if (in_array($newStatus, ['todo', 'in_progress', 'done'])) {
-        $stmt = $db->prepare("UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-        $stmt->execute([$newStatus, $taskId]);
-        setFlash('success', 'Tasca moguda correctament.');
-    } else {
-        setFlash('error', 'Estat no vàlid.');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validCsrf()) {
+        $errors[] = 'La sessió no és vàlida. Torna a carregar el tauler.';
     }
-    redirect('board.php' . ($teamFilter ? "?team=$teamFilter" : ''));
-}
 
+    $newStatus = (string) ($_POST['status'] ?? '');
+    if (!in_array($newStatus, ['todo', 'in_progress', 'done'], true)) {
+        $errors[] = 'L’estat seleccionat no és vàlid.';
+    }
+
+    $taskFound = false;
+    foreach ($data['tasks'] as &$task) {
+        if (
+            (int) $task['id'] === (int) ($_POST['task_id'] ?? 0)
+            && $sprint !== null
+            && (int) ($task['sprint_id'] ?? 0) === (int) $sprint['id']
+        ) {
+            $taskFound = true;
+            if (!$errors) {
+                $task['status'] = $newStatus;
+            }
+        }
+    }
+    unset($task);
+
+    if (!$taskFound) {
+        $errors[] = 'La tasca no existeix dins de l’esprint actiu.';
+    }
+
+    if (!$errors && saveData($data)) {
+        redirect('board.php');
+    }
+
+    if (!$errors) {
+        $errors[] = 'No s’ha pogut guardar el canvi d’estat.';
+    }
+}
+$tasks = array_filter(
+    $data['tasks'] ?? [],
+    static fn (array $task): bool => $sprint !== null
+        && (int) ($task['sprint_id'] ?? 0) === (int) $sprint['id']
+        && ($selectedTeam === 0 || (int) ($task['team_id'] ?? 0) === $selectedTeam)
+);
+foreach ($tasks as &$task) {
+    $task['team_name'] = recordName(
+        $data['teams'],
+        $task['team_id'] ?? null,
+        'Sense equip'
+    );
+    $task['user_name'] = recordName(
+        $data['users'],
+        $task['user_id'] ?? null,
+        'Sense responsable'
+    );
+}
+unset($task);
+$pageTitle = 'Tauler';
 require __DIR__ . '/../includes/header.php';
 ?>
 
-<h1>Tauler Kanban</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Tauler Kanban</h1>
+    <a class="btn btn-primary" href="task-create.php">+ Nova tasca</a>
+</div>
 
-<form method="get" class="row g-3 mb-4">
-    <div class="col-auto">
-        <label for="team" class="form-label">Filtra per equip:</label>
-    </div>
-    <div class="col-auto">
-        <select name="team" id="team" class="form-select" onchange="this.form.submit()">
-            <option value="">Tots els equips</option>
-            <?php foreach ($teams as $team): ?>
-                <option value="<?= $team['id'] ?>" <?= $teamFilter == $team['id'] ? 'selected' : '' ?>>
+<?php foreach ($errors as $error): ?>
+    <div class="alert alert-danger"><?= h($error) ?></div>
+<?php endforeach; ?>
+
+<?php if (!$sprint): ?>
+    <div class="alert alert-warning">No hi ha cap esprint actiu.</div>
+<?php endif; ?>
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-sm-5 col-md-4">
+        <label class="form-label" for="team_id">Filtrar per equip</label>
+        <select class="form-select" id="team_id" name="team_id">
+            <option value="0">Tots els equips</option>
+            <?php foreach ($data['teams'] ?? [] as $team): ?>
+                <option value="<?= (int) $team['id'] ?>" <?= $selectedTeam === (int) $team['id'] ? 'selected' : '' ?>>
                     <?= h($team['name']) ?>
                 </option>
             <?php endforeach; ?>
         </select>
     </div>
-    <?php if ($teamFilter): ?>
-        <div class="col-auto">
-            <a href="board.php" class="btn btn-outline-secondary">Netejar filtre</a>
-        </div>
-    <?php endif; ?>
+    <div class="col-auto"><button class="btn btn-outline-secondary">Filtrar</button></div>
 </form>
 
-<div class="row">
-    <?php foreach ($columns as $status => $label): ?>
-        <div class="col-md-4 mb-3">
+<div class="row g-3">
+    <?php foreach (['todo' => 'To do', 'in_progress' => 'In progress', 'done' => 'Done'] as $status => $label): ?>
+        <div class="col-md-4">
             <div class="card h-100">
-                <div class="card-header <?= match($status) { 'todo' => 'bg-secondary text-white', 'in_progress' => 'bg-primary text-white', 'done' => 'bg-success text-white' } ?>">
-                    <h4 class="mb-0"><?= h($label) ?></h4>
-                </div>
-                <div class="card-body">
-                    <?php if (empty($board[$status])): ?>
-                        <p class="text-muted">No hi ha tasques.</p>
-                    <?php else: ?>
-                        <?php foreach ($board[$status] as $task): ?>
-                            <div class="card mb-2 border">
-                                <div class="card-body p-3">
-                                    <h6 class="card-title mb-1">
-                                        <a href="task.php?id=<?= $task['id'] ?>" class="text-decoration-none">
-                                            <?= h($task['title']) ?>
-                                        </a>
-                                    </h6>
-                                    <p class="card-text small text-muted mb-1">
-                                        <?= h(substr($task['description'] ?? '', 0, 80)) ?><?= strlen($task['description'] ?? '') > 80 ? '...' : '' ?>
-                                    </p>
-                                    <p class="card-text small mb-1">
-                                        <strong>Equip:</strong> <?= h($task['team_name'] ?? '-') ?>
-                                        <br>
-                                        <strong>Responsable:</strong> <?= h($task['user_name'] ?? '-') ?>
-                                    </p>
-                                    <?php if ($status !== 'done'): ?>
-                                        <form method="post" class="d-inline">
-                                            <?= csrfField() ?>
-                                            <input type="hidden" name="action" value="move_task">
-                                            <input type="hidden" name="task_id" value="<?= $task['id'] ?>">
-                                            <select name="new_status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                                <option value="">Canviar estat...</option>
-                                                <?php if ($status === 'todo'): ?>
-                                                    <option value="in_progress">→ In Progress</option>
-                                                <?php elseif ($status === 'in_progress'): ?>
-                                                    <option value="todo">← To Do</option>
-                                                    <option value="done">→ Done</option>
-                                                <?php endif; ?>
-                                            </select>
-                                        </form>
-                                    <?php endif; ?>
-                                    <a href="task-edit.php?id=<?= $task['id'] ?>" class="btn btn-sm btn-outline-primary mt-1">Editar</a>
-                                </div>
+                <div class="card-header fw-bold"><?= $label ?></div>
+                <div class="card-body bg-light">
+                    <?php foreach ($tasks as $task): ?>
+                        <?php if ($task['status'] !== $status) continue; ?>
+                        <article class="card mb-3">
+                            <div class="card-body">
+                                <h2 class="h6">
+                                    <a href="task.php?id=<?= $task['id'] ?>">
+                                        <?= h($task['title']) ?>
+                                    </a>
+                                </h2>
+                                <p class="small mb-2">
+                                    <?= h($task['description']) ?>
+                                </p>
+                                <small class="text-muted">
+                                    <?= h($task['team_name']) ?> · <?= h($task['user_name']) ?>
+                                </small>
+                                <form method="post" class="mt-2">
+                                    <input type="hidden" name="csrf" value="<?= h(csrfToken()) ?>">
+                                    <input type="hidden" name="task_id" value="<?= $task['id'] ?>">
+                                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                        <option value="todo" <?= $status === 'todo' ? 'selected' : '' ?>>To do</option>
+                                        <option value="in_progress" <?= $status === 'in_progress' ? 'selected' : '' ?>>In progress</option>
+                                        <option value="done" <?= $status === 'done' ? 'selected' : '' ?>>Done</option>
+                                    </select>
+                                </form>
                             </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                        </article>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>

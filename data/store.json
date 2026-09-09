@@ -1,0 +1,86 @@
+{
+    "users": [
+        {
+            "id": 1,
+            "name": "Alex Garcia",
+            "email": "alex@example.test",
+            "password": "$2y$10$HX6t3YTgV5fbSu2OvDkcmOMRjFa\/sMb7zUWOGpVRC\/FdzuzBPzWry",
+            "role": "student"
+        },
+        {
+            "id": 2,
+            "name": "Maria Ferrer",
+            "email": "maria@example.test",
+            "password": "$2y$10$HX6t3YTgV5fbSu2OvDkcmOMRjFa\/sMb7zUWOGpVRC\/FdzuzBPzWry",
+            "role": "teacher"
+        }
+    ],
+    "sprints": [
+        {
+            "id": 1,
+            "name": "Sprint 1",
+            "goal": "Construir el primer tauler funcional",
+            "start_date": "2026-09-01",
+            "end_date": "2026-09-14",
+            "status": "active"
+        }
+    ],
+    "teams": [
+        {
+            "id": 1,
+            "name": "Equip Alpha"
+        },
+        {
+            "id": 2,
+            "name": "Equip Beta"
+        }
+    ],
+    "team_members": [
+        {
+            "team_id": 1,
+            "user_id": 1,
+            "role": "Developer",
+            "sprint_id": 1
+        },
+        {
+            "team_id": 2,
+            "user_id": 2,
+            "role": "Scrum Master",
+            "sprint_id": 1
+        }
+    ],
+    "tasks": [
+        {
+            "id": 1,
+            "title": "Configurar PHP",
+            "description": "Preparar l’entorn de desenvolupament.",
+            "status": "todo",
+            "team_id": 1,
+            "user_id": 1,
+            "sprint_id": 1
+        },
+        {
+            "id": 2,
+            "title": "Dissenyar tauler",
+            "description": "Crear les tres columnes Kanban.",
+            "status": "in_progress",
+            "team_id": 2,
+            "user_id": 2,
+            "sprint_id": 1
+        },
+        {
+            "id": 3,
+            "title": "Prova 1",
+            "description": "Prova 2",
+            "status": "in_progress",
+            "user_id": 2,
+            "sprint_id": 1,
+            "team_id": null
+        }
+    ],
+    "comments": [],
+    "next_ids": {
+        "tasks": 4,
+        "comments": 1
+    }
+}

@@ -1,6 +1,6 @@
 <?php
 
-define('APP_NAME', 'SprintBoard');
-define('APP_URL', 'http://localhost:8000');
-define('DB_PATH', __DIR__ . '/../data/sprintboard.sqlite');
-define('SESSION_LIFETIME', 3600);
+declare(strict_types=1);
+
+const APP_NAME = 'SprintBoard';
+const DATA_PATH = __DIR__ . '/../data/store.json';

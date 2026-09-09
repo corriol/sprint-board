@@ -1,12 +1,14 @@
 <?php
-
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/flash.php';
+declare(strict_types=1);
 
 session_start();
-logout();
-setFlash('info', 'Has tancat la sessió.');
-header('Location: login.php');
-exit;
+require_once __DIR__ . '/../includes/functions.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !validCsrf()) {
+    http_response_code(400);
+    exit('La petició per tancar la sessió no és vàlida.');
+}
+
+$_SESSION = [];
+session_destroy();
+redirect('login.php');

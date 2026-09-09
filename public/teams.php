@@ -1,58 +1,46 @@
 <?php
-
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/flash.php';
+declare(strict_types=1);
 
 session_start();
+require_once __DIR__ . '/../includes/data.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
 requireAuth();
 
-$db = getDB();
-$teams = $db->query("SELECT * FROM teams ORDER BY name")->fetchAll();
-
+$data = loadData();
+$pageTitle = 'Equips';
 require __DIR__ . '/../includes/header.php';
 ?>
 
-<h1>Equips</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-primary fw-semibold mb-1">COL·LABORACIÓ</p>
+        <h1>Equips</h1>
+    </div>
+</div>
 
-<?php if (empty($teams)): ?>
-    <p class="text-muted">No hi ha equips definits.</p>
-<?php else: ?>
-    <div class="row">
-        <?php foreach ($teams as $team):
-            $stmt = $db->prepare("
-                SELECT u.*, tm.role FROM team_members tm
-                JOIN users u ON tm.user_id = u.id
-                WHERE tm.team_id = ?
-            ");
-            $stmt->execute([$team['id']]);
-            $members = $stmt->fetchAll();
+<div class="row g-3">
+    <?php foreach ($data['teams'] as $team): ?>
+        <?php
+        $memberCount = 0;
+        foreach ($data['team_members'] ?? [] as $membership) {
+            if ((int) $membership['team_id'] === (int) $team['id']) {
+                $memberCount++;
+            }
+        }
         ?>
-            <div class="col-md-4 mb-3">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="mb-0"><?= h($team['name']) ?></h3>
-                    </div>
-                    <div class="card-body">
-                        <?php if (empty($members)): ?>
-                            <p class="text-muted">Sense membres.</p>
-                        <?php else: ?>
-                            <ul class="list-group list-group-flush">
-                                <?php foreach ($members as $m): ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        <?= h($m['name']) ?>
-                                        <?= getRoleBadge($m['role']) ?>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        <?php endif; ?>
-                        <a href="team.php?id=<?= $team['id'] ?>" class="btn btn-primary mt-3">Veure equip</a>
-                    </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h4"><?= h($team['name']) ?></h2>
+                    <p class="text-muted"><?= $memberCount ?> membre(s)</p>
+                    <a class="btn btn-outline-primary" href="team.php?id=<?= $team['id'] ?>">
+                        Veure fitxa
+                    </a>
                 </div>
             </div>
-        <?php endforeach; ?>
-    </div>
-<?php endif; ?>
+        </div>
+    <?php endforeach; ?>
+</div>
 
 <?php require __DIR__ . '/../includes/footer.php'; ?>

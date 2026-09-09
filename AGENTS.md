@@ -2,7 +2,7 @@
 
 This is an educational web application for students learning server-side web development with PHP.
 
-The project is a classic Multi-Page Application built with PHP 8.3, HTML, Bootstrap and PDO.
+The project is a classic Multi-Page Application built with PHP 8.3, HTML and Bootstrap.
 
 The main goal is not to produce the most abstract or scalable architecture, but to help students understand how server-side web applications work.
 
@@ -17,12 +17,12 @@ The main goal is not to produce the most abstract or scalable architecture, but 
 - Each page may process its own form when appropriate.
 - Avoid excessive abstraction.
 - Prioritise learning value over architectural purity.
+- All contents in RA1, RA2, RA3 and RA4 should be included.
+- Follow the program defined in `references` directory
 
 # Technologies
 
-- PHP 8.3
-- PDO for database access
-- SQLite
+- PHP 8.3- 
 - Bootstrap 5
 - HTML5
 - CSS
@@ -35,10 +35,10 @@ The main goal is not to produce the most abstract or scalable architecture, but 
 - Use strict comparisons.
 - Validate input explicitly.
 - Escape output with `htmlspecialchars`.
-- Use prepared statements with PDO.
 - Keep functions short and understandable.
 - Prefer descriptive variable and function names.
 - Comments should explain educationally relevant decisions, not obvious code.
+- Do not minify the code; keep formatting and whitespace readable for students.
 
 # Security rules
 
@@ -86,23 +86,6 @@ Use a simple structure similar to:
 /docs
   notes.md
 
-# Application features
-
-The application should include:
-
-- User login and logout.
-- Session-based authentication.
-- User listing.
-- User creation.
-- User editing.
-- User deletion.
-- Role-based access control if needed.
-- Form validation.
-- Flash messages.
-- Basic database seed data.
-- Clear separation between public pages, shared includes and configuration files.
-- Security should be optional. Ask for its implementation.
-
 # Teaching approach
 
 When generating code:
@@ -114,7 +97,7 @@ When generating code:
 - Make database access visible and understandable.
 - When possible, show the request → validation → database operation → response flow.
 - Keep examples realistic but not enterprise-level.
-- Process forms by using only a page or using two pages. Decide freely. 
+- Process forms by using only a page or using two pages. Decide freely.
 
 # What to avoid
 

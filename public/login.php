@@ -1,72 +1,59 @@
 <?php
-
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/csrf.php';
-require_once __DIR__ . '/../includes/flash.php';
-
+declare(strict_types=1);
 session_start();
-
-if (isAuthenticated()) {
-    redirect('index.php');
-}
-
-$error = '';
-
+require_once __DIR__ . '/../includes/data.php';
+require_once __DIR__ . '/../includes/functions.php';
+$error = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim($_POST['username'] ?? '');
-    $password = $_POST['password'] ?? '';
-
-    if ($username === '' || $password === '') {
-        $error = 'Tots els camps són obligatoris.';
-    } elseif (login($username, $password)) {
-        setFlash('success', 'Has iniciat sessió correctament.');
-        redirect('index.php');
-    } else {
-        $error = 'Usuari o contrasenya incorrectes.';
+    $email = trim((string) ($_POST['email'] ?? ''));
+    $user = null;
+    foreach (loadData()['users'] ?? [] as $candidate) {
+        if ($candidate['email'] === $email) { $user = $candidate; break; }
     }
+    if ($user && password_verify((string) ($_POST['password'] ?? ''), $user['password'])) {
+        session_regenerate_id(true); $_SESSION['user_id'] = $user['id']; redirect('index.php');
+    }
+    $error = 'El correu o la contrasenya no són correctes.';
 }
-
+$pageTitle = 'Inici de sessió';
+require __DIR__ . '/../includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="ca">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inici de sessió - <?= h(APP_NAME) ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-    <div class="container">
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-4">
-                <div class="card shadow">
-                    <div class="card-body">
-                        <h1 class="card-title text-center mb-4"><?= h(APP_NAME) ?></h1>
-                        <?php if ($error): ?>
-                            <div class="alert alert-danger"><?= h($error) ?></div>
-                        <?php endif; ?>
-                        <form method="post">
-                            <?= csrfField() ?>
-                            <div class="mb-3">
-                                <label for="username" class="form-label">Usuari</label>
-                                <input type="text" class="form-control" id="username" name="username" value="<?= h($username ?? '') ?>" required autofocus>
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">Contrasenya</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Entrar</button>
-                        </form>
-                        <p class="text-center text-muted mt-3 small">
-                            Usuaris de prova: admin / alice / bob / carol / david / eva<br>
-                            Contrasenya: 1234
-                        </p>
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-4">Inicia sessió</h1>
+
+                <?php if (isset($_GET['registered'])): ?>
+                    <div class="alert alert-success">
+                        Compte creat correctament. Ja pots iniciar sessió.
                     </div>
-                </div>
+                <?php endif; ?>
+
+                <?php if ($error): ?>
+                    <div class="alert alert-danger"><?= h($error) ?></div>
+                <?php endif; ?>
+
+                <form method="post">
+                    <label class="form-label">Correu</label>
+                    <input class="form-control mb-3" type="email" name="email" required>
+
+                    <label class="form-label">Contrasenya</label>
+                    <input class="form-control mb-3" type="password" name="password" required>
+
+                    <button class="btn btn-primary w-100">Entrar</button>
+                </form>
+
+                <p class="small text-muted mt-3 mb-0">
+                    Prova: alex@example.test / password
+                </p>
+                <p class="mt-3 mb-0">
+                    <a href="register.php">Crear un compte nou</a>
+                </p>
             </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+
+<?php require __DIR__ . '/../includes/footer.php'; ?>

@@ -1,107 +1,73 @@
 <?php
-
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/flash.php';
+declare(strict_types=1);
 
 session_start();
+require_once __DIR__ . '/../includes/data.php';
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
 requireAuth();
 
-$id = $_GET['id'] ?? null;
-if (!$id) {
-    setFlash('error', 'No s\'ha especificat l\'equip.');
-    redirect('teams.php');
-}
-
-$db = getDB();
-$stmt = $db->prepare("SELECT * FROM teams WHERE id = ?");
-$stmt->execute([$id]);
-$team = $stmt->fetch();
+$data = loadData();
+$team = findRecord($data['teams'], (int) ($_GET['id'] ?? 0));
+$sprint = activeSprint($data['sprints'] ?? []);
 
 if (!$team) {
-    setFlash('error', 'Equip no trobat.');
-    redirect('teams.php');
+    http_response_code(404);
+    exit('Equip no trobat');
 }
 
-$stmt = $db->prepare("
-    SELECT u.*, tm.role FROM team_members tm
-    JOIN users u ON tm.user_id = u.id
-    WHERE tm.team_id = ?
-");
-$stmt->execute([$id]);
-$members = $stmt->fetchAll();
+$members = [];
+foreach ($data['team_members'] ?? [] as $membership) {
+    if (
+        (int) $membership['team_id'] === (int) $team['id']
+        && ($sprint === null || (int) ($membership['sprint_id'] ?? 0) === (int) $sprint['id'])
+    ) {
+        $member = findRecord($data['users'], (int) $membership['user_id']);
+        if ($member) {
+            $members[] = [
+                'user' => $member,
+                'role' => $membership['role'],
+            ];
+        }
+    }
+}
 
-$stmt = $db->prepare("
-    SELECT t.*, s.name as sprint_name, s.status as sprint_status
-    FROM tasks t
-    JOIN sprints s ON t.sprint_id = s.id
-    WHERE t.team_id = ?
-    ORDER BY s.start_date DESC, t.created_at DESC
-");
-$stmt->execute([$id]);
-$tasks = $stmt->fetchAll();
-
+$pageTitle = $team['name'];
 require __DIR__ . '/../includes/header.php';
 ?>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <a href="teams.php" class="btn btn-outline-secondary mb-3">← Tornar a equips</a>
-        <div class="card">
-            <div class="card-header">
-                <h2 class="mb-0"><?= h($team['name']) ?></h2>
-            </div>
-            <div class="card-body">
-                <h3>Membres</h3>
-                <?php if (empty($members)): ?>
-                    <p class="text-muted">No hi ha membres en este equip.</p>
-                <?php else: ?>
-                    <ul class="list-group mb-3">
-                        <?php foreach ($members as $m): ?>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <?= h($m['name']) ?>
-                                <?= getRoleBadge($m['role']) ?>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
-            </div>
-        </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <p class="text-primary fw-semibold mb-1">FITXA D’EQUIP</p>
+        <h1><?= h($team['name']) ?></h1>
     </div>
+    <a class="btn btn-outline-secondary" href="teams.php">Tornar als equips</a>
 </div>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header"><h3 class="mb-0">Tasques de l'equip</h3></div>
-            <div class="card-body">
-                <?php if (empty($tasks)): ?>
-                    <p class="text-muted">No hi ha tasques assignades a este equip.</p>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Títol</th>
-                                    <th>Esprint</th>
-                                    <th>Estat</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($tasks as $task): ?>
-                                    <tr>
-                                        <td><a href="task.php?id=<?= $task['id'] ?>"><?= h($task['title']) ?></a></td>
-                                        <td><?= h($task['sprint_name']) ?></td>
-                                        <td><?= getTaskStatusBadge($task['status']) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+<div class="card">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Membres</h2>
+    </div>
+    <div class="card-body">
+        <?php if (!$members): ?>
+            <p class="text-muted mb-0">Aquest equip encara no té membres.</p>
+        <?php else: ?>
+            <div class="list-group list-group-flush">
+                <?php foreach ($members as $member): ?>
+                    <div class="list-group-item d-flex justify-content-between px-0">
+                        <div>
+                            <strong><?= h($member['user']['name']) ?></strong><br>
+                            <small class="text-muted">
+                                <?= h($member['user']['email']) ?>
+                            </small>
+                        </div>
+                        <span class="badge text-bg-secondary align-self-center">
+                            <?= h($member['role']) ?>
+                        </span>
                     </div>
-                <?php endif; ?>
+                <?php endforeach; ?>
             </div>
-        </div>
+        <?php endif; ?>
     </div>
 </div>
 
