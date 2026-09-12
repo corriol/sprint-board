@@ -1,5 +1,5 @@
 /data/*.sqlite
-
+/*.md
 # Local OpenCode configuration and dependencies
 /.opencode/
 
